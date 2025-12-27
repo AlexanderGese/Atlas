@@ -1,32 +1,18 @@
-"""Text-to-speech output for Atlas."""
+"""Text-to-speech output for Atlas using espeak-ng."""
 
-import pyttsx3
+import subprocess
 import threading
 
 
 class TextToSpeech:
-    """Handles text-to-speech output."""
+    """Handles text-to-speech output using espeak-ng."""
 
     def __init__(self):
-        self.engine = pyttsx3.init()
-        self._configure_voice()
         self._lock = threading.Lock()
-
-    def _configure_voice(self) -> None:
-        """Configure TTS voice settings."""
-        # Set speech rate (words per minute)
-        self.engine.setProperty("rate", 175)
-
-        # Set volume (0.0 to 1.0)
-        self.engine.setProperty("volume", 1.0)
-
-        # Try to use a natural-sounding voice
-        voices = self.engine.getProperty("voices")
-        for voice in voices:
-            # Prefer female English voices for assistant personality
-            if "english" in voice.name.lower():
-                self.engine.setProperty("voice", voice.id)
-                break
+        self._process = None
+        # espeak-ng settings
+        self.speed = 175  # words per minute
+        self.voice = "en"  # English voice
 
     def speak(self, text: str) -> None:
         """
@@ -36,8 +22,17 @@ class TextToSpeech:
             text: Text to speak.
         """
         with self._lock:
-            self.engine.say(text)
-            self.engine.runAndWait()
+            try:
+                self._process = subprocess.Popen(
+                    ["espeak-ng", "-v", self.voice, "-s", str(self.speed), text],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+                self._process.wait()
+            except FileNotFoundError:
+                print("Warning: espeak-ng not found. TTS disabled.")
+            except Exception as e:
+                print(f"TTS error: {e}")
 
     def speak_async(self, text: str) -> None:
         """
@@ -51,8 +46,9 @@ class TextToSpeech:
 
     def stop(self) -> None:
         """Stop any ongoing speech."""
-        self.engine.stop()
+        if self._process:
+            self._process.terminate()
 
     def cleanup(self) -> None:
         """Release resources."""
-        self.engine.stop()
+        self.stop()
