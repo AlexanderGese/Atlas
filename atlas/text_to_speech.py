@@ -1,36 +1,79 @@
-"""Text-to-speech output for Atlas using espeak-ng."""
+"""Text-to-speech output using OpenAI TTS API."""
 
+import os
 import subprocess
+import tempfile
 import threading
+from openai import OpenAI
+from .config import Config
 
 
 class TextToSpeech:
-    """Handles text-to-speech output using espeak-ng."""
+    """Handles text-to-speech output using OpenAI's TTS API."""
 
     def __init__(self):
+        self.client = OpenAI(api_key=Config.OPENAI_API_KEY)
         self._lock = threading.Lock()
         self._process = None
-        # espeak-ng settings
-        self.speed = 175  # words per minute
-        self.voice = "en"  # English voice
+        # OpenAI TTS settings
+        # Voices: alloy, echo, fable, onyx, nova, shimmer
+        self.voice = "nova"  # Natural female voice
+        self.model = "tts-1"  # Use "tts-1-hd" for higher quality
+
+    def _find_player(self) -> list:
+        """Find available audio player."""
+        players = [
+            ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet"],
+            ["mpv", "--no-video", "--really-quiet"],
+            ["cvlc", "--play-and-exit", "--no-repeat", "--quiet"],
+            ["vlc", "--intf", "dummy", "--play-and-exit", "--no-repeat", "--quiet"],
+        ]
+        for player in players:
+            try:
+                subprocess.run(["which", player[0]], capture_output=True, check=True)
+                return player
+            except subprocess.CalledProcessError:
+                continue
+        return None
 
     def speak(self, text: str) -> None:
         """
-        Speak the given text.
+        Speak the given text using OpenAI TTS.
 
         Args:
             text: Text to speak.
         """
         with self._lock:
             try:
-                self._process = subprocess.Popen(
-                    ["espeak-ng", "-v", self.voice, "-s", str(self.speed), text],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL
+                # Generate speech with OpenAI
+                response = self.client.audio.speech.create(
+                    model=self.model,
+                    voice=self.voice,
+                    input=text,
+                    response_format="mp3"
                 )
-                self._process.wait()
-            except FileNotFoundError:
-                print("Warning: espeak-ng not found. TTS disabled.")
+
+                # Save to temp file
+                with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
+                    tmp.write(response.content)
+                    tmp_path = tmp.name
+
+                # Find and use available player
+                player = self._find_player()
+                if player:
+                    cmd = player + [tmp_path]
+                    self._process = subprocess.Popen(
+                        cmd,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL
+                    )
+                    self._process.wait()
+                else:
+                    print("Warning: No audio player found. Install ffmpeg, mpv, or vlc.")
+
+                # Cleanup temp file
+                os.unlink(tmp_path)
+
             except Exception as e:
                 print(f"TTS error: {e}")
 
