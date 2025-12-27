@@ -1,36 +1,37 @@
-"""Wake word detection using Porcupine."""
+"""Wake word detection using OpenWakeWord (free & open-source)."""
 
-import struct
+import numpy as np
 import pyaudio
-import pvporcupine
+from openwakeword.model import Model
 from .config import Config
 
 
 class WakeWordDetector:
-    """Detects the wake word 'Atlas' using Picovoice Porcupine."""
+    """Detects the wake word 'Alexa' using OpenWakeWord (free alternative)."""
 
     def __init__(self):
-        self.porcupine = None
+        self.model = None
         self.audio = None
         self.stream = None
+        self.frame_length = 1280  # OpenWakeWord expects 80ms chunks at 16kHz
 
     def initialize(self) -> None:
-        """Initialize Porcupine and audio stream."""
-        # Create Porcupine instance with built-in "Alexa" keyword
-        # Note: For custom "Atlas" wake word, you'll need to train one at Picovoice Console
-        self.porcupine = pvporcupine.create(
-            access_key=Config.PICOVOICE_ACCESS_KEY,
-            keywords=["alexa"],  # Using "alexa" as placeholder; replace with custom "atlas" keyword
-            sensitivities=[Config.WAKE_WORD_SENSITIVITY]
+        """Initialize OpenWakeWord and audio stream."""
+        # Load OpenWakeWord model - using "alexa" as it's a pre-trained model
+        # The model responds to "Alexa" but you say "Atlas" (sounds similar enough!)
+        # For a custom wake word, you can train your own model
+        self.model = Model(
+            wakeword_models=["alexa"],  # Pre-trained model included with openwakeword
+            inference_framework="onnx"
         )
 
         self.audio = pyaudio.PyAudio()
         self.stream = self.audio.open(
-            rate=self.porcupine.sample_rate,
-            channels=1,
+            rate=Config.SAMPLE_RATE,
+            channels=Config.CHANNELS,
             format=pyaudio.paInt16,
             input=True,
-            frames_per_buffer=self.porcupine.frame_length
+            frames_per_buffer=self.frame_length
         )
 
     def listen_for_wake_word(self) -> bool:
@@ -40,14 +41,24 @@ class WakeWordDetector:
         Returns:
             True when wake word is detected.
         """
-        if not self.porcupine or not self.stream:
+        if not self.model or not self.stream:
             raise RuntimeError("Wake word detector not initialized")
 
-        pcm = self.stream.read(self.porcupine.frame_length, exception_on_overflow=False)
-        pcm = struct.unpack_from("h" * self.porcupine.frame_length, pcm)
+        # Read audio chunk
+        audio_data = self.stream.read(self.frame_length, exception_on_overflow=False)
+        audio_array = np.frombuffer(audio_data, dtype=np.int16)
 
-        keyword_index = self.porcupine.process(pcm)
-        return keyword_index >= 0
+        # Process with OpenWakeWord
+        prediction = self.model.predict(audio_array)
+
+        # Check if any wake word was detected (threshold-based)
+        for model_name, score in prediction.items():
+            if score > Config.WAKE_WORD_SENSITIVITY:
+                # Reset the model state after detection
+                self.model.reset()
+                return True
+
+        return False
 
     def cleanup(self) -> None:
         """Release resources."""
@@ -55,8 +66,6 @@ class WakeWordDetector:
             self.stream.close()
         if self.audio:
             self.audio.terminate()
-        if self.porcupine:
-            self.porcupine.delete()
 
 
 def create_detector() -> WakeWordDetector:

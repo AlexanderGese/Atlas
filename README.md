@@ -4,7 +4,7 @@ A voice-activated AI assistant that responds to the wake word "Atlas", powered b
 
 ## Features
 
-- Wake word detection ("Atlas")
+- Wake word detection (free, using OpenWakeWord)
 - Speech-to-text using OpenAI Whisper
 - Intelligent responses via ChatGPT
 - Text-to-speech output
@@ -12,25 +12,24 @@ A voice-activated AI assistant that responds to the wake word "Atlas", powered b
 ## Requirements
 
 - Python 3.9+
-- OpenAI API key
-- Picovoice access key (for wake word detection)
+- OpenAI API key (only paid service required)
 - PortAudio (for audio input)
 
 ## Installation
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/Atlas.git
+git clone https://github.com/AlexanderGese/Atlas.git
 cd Atlas
 ```
 
 2. Install system dependencies:
 ```bash
 # Ubuntu/Debian
-sudo apt-get install portaudio19-dev python3-pyaudio
+sudo apt-get install portaudio19-dev python3-pyaudio espeak
 
 # macOS
-brew install portaudio
+brew install portaudio espeak
 ```
 
 3. Create virtual environment:
@@ -47,16 +46,15 @@ pip install -r requirements.txt
 5. Configure environment variables:
 ```bash
 cp .env.example .env
-# Edit .env with your API keys
+# Edit .env with your OpenAI API key
 ```
 
 ## Configuration
 
-Create a `.env` file with your API keys:
+Create a `.env` file with your API key:
 
 ```
 OPENAI_API_KEY=your_openai_api_key_here
-PICOVOICE_ACCESS_KEY=your_picovoice_access_key_here
 ```
 
 ## Usage
@@ -74,7 +72,7 @@ Atlas/
 ├── atlas/
 │   ├── __init__.py
 │   ├── main.py              # Entry point
-│   ├── wake_word.py         # Wake word detection
+│   ├── wake_word.py         # Wake word detection (OpenWakeWord)
 │   ├── speech_to_text.py    # Whisper integration
 │   ├── assistant.py         # ChatGPT integration
 │   ├── text_to_speech.py    # TTS output
@@ -83,6 +81,14 @@ Atlas/
 ├── .env.example
 └── README.md
 ```
+
+## Cost
+
+The only cost is the OpenAI API usage:
+- **Whisper**: ~$0.006 per minute of audio
+- **GPT-4o-mini**: ~$0.15 per 1M input tokens, $0.60 per 1M output tokens
+
+Wake word detection is completely free using OpenWakeWord.
 
 ## License
 

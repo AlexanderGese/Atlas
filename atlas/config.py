@@ -15,10 +15,7 @@ class Config:
     # OpenAI API key for Whisper and ChatGPT
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
 
-    # Picovoice access key for wake word detection
-    PICOVOICE_ACCESS_KEY: str = os.getenv("PICOVOICE_ACCESS_KEY", "")
-
-    # Wake word sensitivity (0.0 to 1.0)
+    # Wake word sensitivity (0.0 to 1.0, higher = more strict)
     WAKE_WORD_SENSITIVITY: float = float(os.getenv("WAKE_WORD_SENSITIVITY", "0.5"))
 
     # Audio settings
@@ -44,6 +41,4 @@ class Config:
         errors = []
         if not cls.OPENAI_API_KEY:
             errors.append("OPENAI_API_KEY is not set")
-        if not cls.PICOVOICE_ACCESS_KEY:
-            errors.append("PICOVOICE_ACCESS_KEY is not set")
         return errors
