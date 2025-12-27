@@ -3,8 +3,8 @@
 import io
 import wave
 import tempfile
-import pyaudio
 import numpy as np
+import sounddevice as sd
 from openai import OpenAI
 from .config import Config
 
@@ -14,7 +14,6 @@ class SpeechToText:
 
     def __init__(self):
         self.client = OpenAI(api_key=Config.OPENAI_API_KEY)
-        self.audio = pyaudio.PyAudio()
 
     def record_audio(self) -> bytes:
         """
@@ -23,46 +22,41 @@ class SpeechToText:
         Returns:
             Audio data as bytes in WAV format.
         """
-        stream = self.audio.open(
-            rate=Config.SAMPLE_RATE,
-            channels=Config.CHANNELS,
-            format=pyaudio.paInt16,
-            input=True,
-            frames_per_buffer=Config.CHUNK_SIZE
-        )
-
         print("Listening...")
         frames = []
         silent_chunks = 0
-        chunks_per_second = Config.SAMPLE_RATE / Config.CHUNK_SIZE
+        chunks_per_second = Config.DEVICE_SAMPLE_RATE / Config.CHUNK_SIZE
         max_silent_chunks = int(Config.SILENCE_DURATION * chunks_per_second)
         max_chunks = int(Config.MAX_RECORDING_DURATION * chunks_per_second)
 
-        for _ in range(max_chunks):
-            data = stream.read(Config.CHUNK_SIZE, exception_on_overflow=False)
-            frames.append(data)
+        with sd.InputStream(
+            samplerate=Config.DEVICE_SAMPLE_RATE,
+            channels=Config.CHANNELS,
+            dtype=np.int16,
+            blocksize=Config.CHUNK_SIZE
+        ) as stream:
+            for _ in range(max_chunks):
+                data, overflowed = stream.read(Config.CHUNK_SIZE)
+                frames.append(data.copy())
 
-            # Check for silence
-            audio_data = np.frombuffer(data, dtype=np.int16)
-            amplitude = np.abs(audio_data).mean()
+                # Check for silence
+                amplitude = np.abs(data).mean()
 
-            if amplitude < Config.SILENCE_THRESHOLD:
-                silent_chunks += 1
-                if silent_chunks >= max_silent_chunks and len(frames) > max_silent_chunks:
-                    break
-            else:
-                silent_chunks = 0
+                if amplitude < Config.SILENCE_THRESHOLD:
+                    silent_chunks += 1
+                    if silent_chunks >= max_silent_chunks and len(frames) > max_silent_chunks:
+                        break
+                else:
+                    silent_chunks = 0
 
-        stream.stop_stream()
-        stream.close()
-
-        # Convert to WAV format
+        # Convert to WAV format (Whisper can handle any sample rate)
+        audio_data = np.concatenate(frames)
         wav_buffer = io.BytesIO()
         with wave.open(wav_buffer, "wb") as wf:
             wf.setnchannels(Config.CHANNELS)
-            wf.setsampwidth(self.audio.get_sample_size(pyaudio.paInt16))
-            wf.setframerate(Config.SAMPLE_RATE)
-            wf.writeframes(b"".join(frames))
+            wf.setsampwidth(2)  # 16-bit = 2 bytes
+            wf.setframerate(Config.DEVICE_SAMPLE_RATE)
+            wf.writeframes(audio_data.tobytes())
 
         return wav_buffer.getvalue()
 
@@ -97,4 +91,4 @@ class SpeechToText:
 
     def cleanup(self) -> None:
         """Release resources."""
-        self.audio.terminate()
+        pass  # sounddevice handles cleanup automatically

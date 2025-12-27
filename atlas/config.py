@@ -19,9 +19,10 @@ class Config:
     WAKE_WORD_SENSITIVITY: float = float(os.getenv("WAKE_WORD_SENSITIVITY", "0.5"))
 
     # Audio settings
-    SAMPLE_RATE: int = 16000
+    DEVICE_SAMPLE_RATE: int = 44100  # Native device sample rate
+    VOSK_SAMPLE_RATE: int = 16000    # Vosk requires 16kHz
     CHANNELS: int = 1
-    CHUNK_SIZE: int = 512
+    CHUNK_SIZE: int = 1024
 
     # Recording settings
     SILENCE_THRESHOLD: int = int(os.getenv("SILENCE_THRESHOLD", "500"))

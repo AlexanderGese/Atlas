@@ -4,16 +4,15 @@ A voice-activated AI assistant that responds to the wake word "Atlas", powered b
 
 ## Features
 
-- Wake word detection (free, using OpenWakeWord)
+- Wake word detection (free, using Vosk - fully offline)
 - Speech-to-text using OpenAI Whisper
 - Intelligent responses via ChatGPT
 - Text-to-speech output
 
 ## Requirements
 
-- Python 3.9+
+- Python 3.9+ (tested on Python 3.13)
 - OpenAI API key (only paid service required)
-- PortAudio (for audio input)
 
 ## Installation
 
@@ -23,13 +22,13 @@ git clone https://github.com/AlexanderGese/Atlas.git
 cd Atlas
 ```
 
-2. Install system dependencies:
+2. Install system dependencies (for TTS):
 ```bash
 # Ubuntu/Debian
-sudo apt-get install portaudio19-dev python3-pyaudio espeak
+sudo apt-get install espeak-ng
 
 # macOS
-brew install portaudio espeak
+brew install espeak
 ```
 
 3. Create virtual environment:
@@ -72,7 +71,7 @@ Atlas/
 ├── atlas/
 │   ├── __init__.py
 │   ├── main.py              # Entry point
-│   ├── wake_word.py         # Wake word detection (OpenWakeWord)
+│   ├── wake_word.py         # Wake word detection (Vosk - free, offline)
 │   ├── speech_to_text.py    # Whisper integration
 │   ├── assistant.py         # ChatGPT integration
 │   ├── text_to_speech.py    # TTS output
@@ -88,7 +87,7 @@ The only cost is the OpenAI API usage:
 - **Whisper**: ~$0.006 per minute of audio
 - **GPT-4o-mini**: ~$0.15 per 1M input tokens, $0.60 per 1M output tokens
 
-Wake word detection is completely free using OpenWakeWord.
+Wake word detection is completely free using Vosk (runs offline, no API needed).
 
 ## License
 
